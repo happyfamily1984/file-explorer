@@ -87,7 +87,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent { AppTheme { App(vm, onExit = { finish() }) } }
+        // 홈에서 뒤로가기: 종료 확인 없이 앱을 백그라운드로 보내 최근 실행 앱에 그대로 남긴다
+        setContent { AppTheme { App(vm, onExit = { moveTaskToBack(true) }) } }
     }
 }
 
@@ -187,7 +188,6 @@ private fun HomeRoute(
     val ctx = LocalContext.current
     var recent by remember { mutableStateOf(emptyList<FileItem>()) }
     var storage by remember { mutableStateOf(StorageInfo(0, 0)) }
-    var askExit by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     LifecycleResumeEffect(Unit) {
         val job = scope.launch {
@@ -196,7 +196,7 @@ private fun HomeRoute(
         }
         onPauseOrDispose { job.cancel() }
     }
-    BackHandler { askExit = true }
+    BackHandler { onExit() }
 
     HomeContent(
         recent = recent, storage = storage,
@@ -213,14 +213,6 @@ private fun HomeRoute(
         onPrivacy = onPrivacy,
     )
 
-    if (askExit) AlertDialog(
-        onDismissRequest = { askExit = false },
-        containerColor = Color.White,
-        title = { Text("앱 종료", fontWeight = FontWeight.Bold) },
-        text = { Text("앱을 종료하겠습니까?") },
-        confirmButton = { TextButton({ askExit = false; onExit() }) { Text("예", color = C.Accent, fontWeight = FontWeight.Bold) } },
-        dismissButton = { TextButton({ askExit = false }) { Text("아니오", color = C.SubStrong) } },
-    )
 }
 
 @Composable
@@ -437,8 +429,7 @@ private fun PrivacyDialog(onDismiss: () -> Unit) {
 @Composable
 fun PermissionScreen(onGranted: () -> Unit, onExit: () -> Unit) {
     val ctx = LocalContext.current
-    var askExit by remember { mutableStateOf(false) }
-    BackHandler { askExit = true }
+    BackHandler { onExit() }
     val legacy = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { onGranted() }
     Column(
         Modifier.fillMaxSize().background(C.Bg).padding(32.dp),
@@ -466,13 +457,6 @@ fun PermissionScreen(onGranted: () -> Unit, onExit: () -> Unit) {
             colors = ButtonDefaults.buttonColors(containerColor = C.Accent)
         ) { Text("권한 허용하기", fontSize = 16.sp, fontWeight = FontWeight.Bold) }
     }
-    if (askExit) AlertDialog(
-        onDismissRequest = { askExit = false }, containerColor = Color.White,
-        title = { Text("앱 종료", fontWeight = FontWeight.Bold) },
-        text = { Text("앱을 종료하겠습니까?") },
-        confirmButton = { TextButton({ askExit = false; onExit() }) { Text("예", fontWeight = FontWeight.Bold) } },
-        dismissButton = { TextButton({ askExit = false }) { Text("아니오", color = C.SubStrong) } },
-    )
 }
 
 enum class Tab(val label: String) { HOME("홈"), FILES("파일"), RECENT("최근 항목"), FAVORITES("즐겨찾기"), SETTINGS("설정") }
