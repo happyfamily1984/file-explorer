@@ -118,4 +118,18 @@ class ScreenshotTest {
         List(SortPrefs(sortBy = SortBy.NAME, foldersFirst = true),
             selection = setOf("$base/logs", "$base/Telegram"))
     }
+
+    @Test fun s6_openwith() = shot("06_openwith_sheet") {
+        Box(Modifier.fillMaxSize().background(Color.White)) {
+            OpenWithContent(
+                download[2],
+                listOf(AppChoice("a", "a", "패키지 설치 프로그램", null), AppChoice("b", "b", "한컴독스 (오피스)", null)),
+                always = true, onAlwaysChange = {}, onPick = {},
+            )
+        }
+    }
+
+    @Test fun s7_settings_home() = shot("07_settings_home") {
+        SettingsContent(SortPrefs(), {}, {}, listOf("apk" to "패키지 설치 프로그램", "pdf" to "한컴독스 (오피스)"), {}, {}, {}, {}, {})
+    }
 }

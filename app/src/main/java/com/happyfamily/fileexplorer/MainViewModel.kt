@@ -24,6 +24,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
     fun setFavorite(paths: Collection<String>, add: Boolean) = viewModelScope.launch { settings.setFavorite(paths, add) }
+    val openWith: StateFlow<Map<String, String>> = settings.openWith
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+
+    fun setOpenWith(ext: String, component: String?) = viewModelScope.launch { settings.setOpenWith(ext, component) }
+    fun clearOpenWith() = viewModelScope.launch { settings.clearOpenWith() }
     fun setSortBy(by: SortBy) = viewModelScope.launch { settings.setSortBy(by) }
     fun setAscending(by: SortBy, asc: Boolean) = viewModelScope.launch { settings.setAscending(by, asc) }
     fun setFoldersFirst(v: Boolean) = viewModelScope.launch { settings.setFoldersFirst(v) }

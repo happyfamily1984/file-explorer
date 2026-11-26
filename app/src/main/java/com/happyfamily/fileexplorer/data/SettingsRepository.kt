@@ -52,4 +52,25 @@ class SettingsRepository(private val context: Context) {
         val cur = it[Keys.FAVORITES] ?: emptySet()
         it[Keys.FAVORITES] = if (add) cur + paths else cur - paths.toSet()
     }
+
+    /**
+     * 확장자별 "항상 이 앱으로 열기" 설정. 키 = open_<확장자>, 값 = "패키지/액티비티".
+     * 다른 설정처럼 즉시 디스크에 저장되어 앱을 다시 켜도 유지된다.
+     */
+    val openWith: Flow<Map<String, String>> = context.dataStore.data.map { p ->
+        p.asMap().mapNotNull { (k, v) ->
+            if (k.name.startsWith(OPEN_PREFIX) && v is String) k.name.removePrefix(OPEN_PREFIX) to v else null
+        }.toMap()
+    }
+
+    suspend fun setOpenWith(ext: String, component: String?) = context.dataStore.edit {
+        val key = stringPreferencesKey(OPEN_PREFIX + ext)
+        if (component == null) it.remove(key) else it[key] = component
+    }
+
+    suspend fun clearOpenWith() = context.dataStore.edit { prefs ->
+        prefs.asMap().keys.filter { it.name.startsWith(OPEN_PREFIX) }.forEach { prefs.remove(it) }
+    }
+
+    private companion object { const val OPEN_PREFIX = "open_" }
 }

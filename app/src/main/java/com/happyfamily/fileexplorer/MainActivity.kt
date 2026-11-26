@@ -143,7 +143,27 @@ fun App(vm: MainViewModel, onExit: () -> Unit) {
         else -> Tab.HOME
     }
 
-    AppBackground {
+    // ── 파일 열기: 저장된 "항상 이 앱으로 열기"가 있으면 바로, 없으면 앱 선택 시트
+    val openWith by vm.openWith.collectAsStateWithLifecycle()
+    var openTarget by remember { mutableStateOf<Pair<FileItem, List<AppChoice>>?>(null) }
+    val openFile: (FileItem) -> Unit = open@{ item ->
+        val ext = item.extension
+        val saved = if (ext.isNotEmpty()) openWith[ext] else null
+        if (saved != null) {
+            if (FileActions.launchWith(ctx, item, saved)) return@open
+            vm.setOpenWith(ext, null)
+            Toast.makeText(ctx, "지정했던 앱을 찾을 수 없어요. 열 앱을 다시 골라 주세요.", Toast.LENGTH_SHORT).show()
+        }
+        val apps = FileActions.candidates(ctx, item)
+        when {
+            apps.isEmpty() -> Toast.makeText(ctx, "이 파일을 열 수 있는 앱이 없어요", Toast.LENGTH_SHORT).show()
+            apps.size == 1 -> if (!FileActions.launchWith(ctx, item, apps[0].component))
+                Toast.makeText(ctx, "파일을 열 수 없어요", Toast.LENGTH_SHORT).show()
+            else -> openTarget = item to apps
+        }
+    }
+
+    CompositionLocalProvider(LocalOpenFile provides openFile) { AppBackground {
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.weight(1f)) {
                 when (val r = stack.last()) {
@@ -158,7 +178,17 @@ fun App(vm: MainViewModel, onExit: () -> Unit) {
             }
             if (!selecting) BottomNav(currentTab, openTab)
         }
-    }
+    } }
+
+    openTarget?.let { (item, apps) -> OpenWithSheet(item, apps, onDismiss = { openTarget = null }) { app, always ->
+        openTarget = null
+        if (always && item.extension.isNotEmpty()) {
+            vm.setOpenWith(item.extension, app.component)
+            Toast.makeText(ctx, "이제 ${extLabel(item.extension)} 파일은 '${app.label}'(으)로 바로 열려요", Toast.LENGTH_SHORT).show()
+        }
+        if (!FileActions.launchWith(ctx, item, app.component))
+            Toast.makeText(ctx, "'${app.label}'(으)로 열 수 없어요", Toast.LENGTH_SHORT).show()
+    } }
 
     if (showSort) SortBottomSheet(vm, prefs) { showSort = false }
     if (showPrivacy) PrivacyDialog { showPrivacy = false }
@@ -189,6 +219,7 @@ private fun HomeRoute(
     var recent by remember { mutableStateOf(emptyList<FileItem>()) }
     var storage by remember { mutableStateOf(StorageInfo(0, 0)) }
     val scope = rememberCoroutineScope()
+    val openFile = LocalOpenFile.current
     LifecycleResumeEffect(Unit) {
         val job = scope.launch {
             recent = vm.repo.recent()
@@ -204,7 +235,7 @@ private fun HomeRoute(
         onMenuSort = onSort,
         onMenuHidden = { vm.setShowHidden(!prefs.showHidden) },
         showHidden = prefs.showHidden,
-        onRecentClick = { FileActions.open(ctx, it) },
+        onRecentClick = { openFile(it) },
         onRecentMore = onRecentMore,
         onCategory = {
             if (it == Category.DOWNLOAD) push(Route.Folder(vm.repo.downloadDir.absolutePath)) else push(Route.Cat(it))
@@ -224,6 +255,7 @@ private fun ListRoute(
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val favorites by vm.favorites.collectAsStateWithLifecycle()
+    val openFile = LocalOpenFile.current
     val repo = vm.repo
     val rootPath = repo.root.absolutePath
     val downloadPath = repo.downloadDir.absolutePath
@@ -315,7 +347,7 @@ private fun ListRoute(
                 when {
                     selection.isNotEmpty() -> selection = if (f.path in selection) selection - f.path else selection + f.path
                     f.isDir -> push(Route.Folder(f.path))
-                    else -> FileActions.open(ctx, f)
+                    else -> openFile(f)
                 }
             },
             onItemLongClick = { f -> selection = selection + f.path },
@@ -460,3 +492,15 @@ fun PermissionScreen(onGranted: () -> Unit, onExit: () -> Unit) {
 }
 
 enum class Tab(val label: String) { HOME("홈"), FILES("파일"), RECENT("최근 항목"), FAVORITES("즐겨찾기"), SETTINGS("설정") }
+
+val LocalOpenFile = staticCompositionLocalOf<(FileItem) -> Unit> { {} }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun OpenWithSheet(item: FileItem, apps: List<AppChoice>, onDismiss: () -> Unit, onPick: (AppChoice, Boolean) -> Unit) {
+    var always by remember { mutableStateOf(false) }
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = Color.White) {
+        OpenWithContent(item, apps, always, { always = it }) { onPick(it, always) }
+    }
+}

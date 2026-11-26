@@ -11,6 +11,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
@@ -156,8 +159,10 @@ fun HomeContent(
                         ) {
                             ColorGlyph(icon, color, 34.dp)
                             Spacer(Modifier.width(8.dp))
-                            Text(cat.label, fontSize = 14.sp, color = C.Text, fontWeight = FontWeight.SemiBold,
-                                maxLines = 2, lineHeight = 17.sp, modifier = Modifier.weight(1f))
+                            // 글자 크기를 크게 쓰는 기기에서도 한 줄로 들어가도록 자동 축소
+                            BasicText(cat.label, maxLines = 1, modifier = Modifier.weight(1f),
+                                style = TextStyle(color = C.Text, fontWeight = FontWeight.SemiBold),
+                                autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = 14.sp, stepSize = 0.5.sp))
                         }
                     }
                 }

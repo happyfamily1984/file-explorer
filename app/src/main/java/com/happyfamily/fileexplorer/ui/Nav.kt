@@ -19,6 +19,9 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -68,8 +71,16 @@ fun BottomNav(current: Tab, onTab: (Tab) -> Unit) {
 @Composable
 fun SettingsRoute(vm: MainViewModel, prefs: SortPrefs, onBack: () -> Unit, onSort: () -> Unit, onPrivacy: () -> Unit) {
     BackHandler(onBack = onBack)
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val openWith by vm.openWith.collectAsStateWithLifecycle()
+    val defaults = remember(openWith) {
+        openWith.entries.sortedBy { it.key }.map { (ext, comp) -> ext to (FileActions.labelOf(ctx, comp) ?: "삭제된 앱") }
+    }
     SettingsContent(
         prefs, onBack, onSort,
+        defaults = defaults,
+        onRemoveDefault = { vm.setOpenWith(it, null) },
+        onClearDefaults = { vm.clearOpenWith() },
         onFoldersFirst = { vm.setFoldersFirst(it) },
         onShowHidden = { vm.setShowHidden(it) },
         onPrivacy = onPrivacy,
@@ -79,6 +90,7 @@ fun SettingsRoute(vm: MainViewModel, prefs: SortPrefs, onBack: () -> Unit, onSor
 @Composable
 fun SettingsContent(
     prefs: SortPrefs, onBack: () -> Unit, onSort: () -> Unit,
+    defaults: List<Pair<String, String>>, onRemoveDefault: (String) -> Unit, onClearDefaults: () -> Unit,
     onFoldersFirst: (Boolean) -> Unit, onShowHidden: (Boolean) -> Unit, onPrivacy: () -> Unit,
 ) {
     val (descL, ascL) = directionLabels(prefs.sortBy)
@@ -100,11 +112,44 @@ fun SettingsContent(
             "정렬 방식은 바꾸는 즉시 저장되어 앱을 종료했다가 다시 열어도 유지됩니다.",
             fontSize = 13.sp, color = C.Sub, lineHeight = 18.sp, modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 10.dp)
         )
+        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 16.dp, top = 24.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            BarTitle("기본으로 열 앱", Modifier.weight(1f), 16)
+            if (defaults.size > 1) Text("모두 해제", color = C.Red, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onClearDefaults).padding(6.dp))
+        }
+        Column(Modifier.padding(horizontal = 16.dp).fillMaxWidth().card(24.dp)) {
+            if (defaults.isEmpty()) Text(
+                "아직 지정한 앱이 없어요.\n파일을 열 때 '항상 이 앱으로 열기'를 체크하면 여기에 표시돼요.",
+                fontSize = 14.sp, color = C.Sub, lineHeight = 20.sp, modifier = Modifier.padding(18.dp)
+            )
+            defaults.forEachIndexed { i, (ext, label) ->
+                if (i > 0) SettingDivider()
+                Row(Modifier.fillMaxWidth().padding(start = 14.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.width(56.dp).clip(RoundedCornerShape(10.dp)).background(C.AccentSoft).padding(vertical = 6.dp),
+                        contentAlignment = Alignment.Center) {
+                        Text(extLabel(ext), color = C.Accent, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
+                    }
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(label, fontSize = 15.sp, color = C.Text, fontWeight = FontWeight.Medium, maxLines = 1)
+                        Text("${extLabel(ext)} 파일을 항상 이 앱으로 열어요", fontSize = 12.sp, color = C.Sub)
+                    }
+                    Text("해제", color = C.Accent, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { onRemoveDefault(ext) }.padding(10.dp))
+                }
+            }
+        }
+        Text(
+            "해제하면 다음에 그 형식의 파일을 열 때 앱을 다시 고를 수 있어요.",
+            fontSize = 13.sp, color = C.Sub, lineHeight = 18.sp, modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 10.dp)
+        )
         BarTitle("정보", Modifier.padding(start = 20.dp, top = 24.dp, bottom = 10.dp), 16)
         Column(Modifier.padding(horizontal = 16.dp).fillMaxWidth().card(24.dp)) {
             SettingRow(Icons.Outlined.Shield, "개인정보 처리방침", null, onClick = onPrivacy)
             SettingDivider()
-            SettingRow(Icons.Outlined.Info, "앱 버전", "1.1.1", onClick = null)
+            SettingRow(Icons.Outlined.Info, "앱 버전", "1.2.0", onClick = null)
         }
         Spacer(Modifier.height(20.dp))
     }
