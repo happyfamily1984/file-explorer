@@ -71,7 +71,7 @@ data class FileItem(
 enum class Category(val label: String) {
     IMAGE("이미지"),
     VIDEO("동영상"),
-    AUDIO("오디오 파일"),
+    AUDIO("오디오"),
     DOCUMENT("문서"),
     DOWNLOAD("다운로드"),
     APK("설치 파일"),

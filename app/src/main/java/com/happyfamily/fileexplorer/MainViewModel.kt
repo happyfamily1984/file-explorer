@@ -20,6 +20,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val prefs: StateFlow<SortPrefs?> = settings.sortPrefs
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
+    val favorites: StateFlow<Set<String>> = settings.favorites
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+
+    fun setFavorite(paths: Collection<String>, add: Boolean) = viewModelScope.launch { settings.setFavorite(paths, add) }
     fun setSortBy(by: SortBy) = viewModelScope.launch { settings.setSortBy(by) }
     fun setAscending(by: SortBy, asc: Boolean) = viewModelScope.launch { settings.setAscending(by, asc) }
     fun setFoldersFirst(v: Boolean) = viewModelScope.launch { settings.setFoldersFirst(v) }

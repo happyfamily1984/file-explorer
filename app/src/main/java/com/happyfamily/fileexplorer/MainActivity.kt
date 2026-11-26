@@ -20,6 +20,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -50,10 +54,16 @@ sealed class Route {
     data class Folder(val path: String) : Route()
     data class Cat(val category: Category) : Route()
     data object Search : Route()
+    data object Recent : Route()
+    data object Favorites : Route()
+    data object Settings : Route()
 
     fun encode(): String = when (this) {
         Home -> "H"
         Search -> "S"
+        Recent -> "R"
+        Favorites -> "V"
+        Settings -> "T"
         is Folder -> "F:$path"
         is Cat -> "C:${category.name}"
     }
@@ -61,6 +71,9 @@ sealed class Route {
     companion object {
         fun decode(s: String): Route = when {
             s == "S" -> Search
+            s == "R" -> Recent
+            s == "V" -> Favorites
+            s == "T" -> Settings
             s.startsWith("F:") -> Folder(s.removePrefix("F:"))
             s.startsWith("C:") -> Cat(Category.valueOf(s.removePrefix("C:")))
             else -> Home
@@ -108,12 +121,41 @@ fun App(vm: MainViewModel, onExit: () -> Unit) {
 
     var showSort by remember { mutableStateOf(false) }
     var showPrivacy by remember { mutableStateOf(false) }
+    var selecting by remember { mutableStateOf(false) }
+    val rootPath = vm.repo.root.absolutePath
+    val openTab: (Tab) -> Unit = { t ->
+        goHome()
+        when (t) {
+            Tab.HOME -> {}
+            Tab.FILES -> stack.add(Route.Folder(rootPath))
+            Tab.RECENT -> stack.add(Route.Recent)
+            Tab.FAVORITES -> stack.add(Route.Favorites)
+            Tab.SETTINGS -> stack.add(Route.Settings)
+        }
+    }
+    val currentTab = when (val first = stack.getOrNull(1)) {
+        null -> Tab.HOME
+        Route.Recent -> Tab.RECENT
+        Route.Favorites -> Tab.FAVORITES
+        Route.Settings -> Tab.SETTINGS
+        is Route.Folder -> if (first.path == rootPath) Tab.FILES else Tab.HOME
+        else -> Tab.HOME
+    }
 
-    when (val r = stack.last()) {
-        Route.Home -> HomeRoute(vm, prefs, push, onSort = { showSort = true }, onPrivacy = { showPrivacy = true }, onExit = onExit)
-        else -> key(stack.size, r) {
-            ListRoute(vm, r, prefs, push = push, pop = pop, goHome = goHome, replaceTop = { stack[stack.lastIndex] = it },
-                onSort = { showSort = true })
+    AppBackground {
+        Column(Modifier.fillMaxSize()) {
+            Box(Modifier.weight(1f)) {
+                when (val r = stack.last()) {
+                    Route.Home -> HomeRoute(vm, prefs, push, onSort = { showSort = true }, onPrivacy = { showPrivacy = true },
+                        onRecentMore = { openTab(Tab.RECENT) }, onExit = onExit)
+                    Route.Settings -> SettingsRoute(vm, prefs, onBack = pop, onSort = { showSort = true }, onPrivacy = { showPrivacy = true })
+                    else -> key(stack.size, r) {
+                        ListRoute(vm, r, prefs, push = push, pop = pop, goHome = goHome, replaceTop = { stack[stack.lastIndex] = it },
+                            onSort = { showSort = true }, onSelecting = { selecting = it })
+                    }
+                }
+            }
+            if (!selecting) BottomNav(currentTab, openTab)
         }
     }
 
@@ -140,7 +182,7 @@ private fun SortBottomSheet(vm: MainViewModel, prefs: SortPrefs, onDismiss: () -
 @Composable
 private fun HomeRoute(
     vm: MainViewModel, prefs: SortPrefs, push: (Route) -> Unit,
-    onSort: () -> Unit, onPrivacy: () -> Unit, onExit: () -> Unit,
+    onSort: () -> Unit, onPrivacy: () -> Unit, onRecentMore: () -> Unit, onExit: () -> Unit,
 ) {
     val ctx = LocalContext.current
     var recent by remember { mutableStateOf(emptyList<FileItem>()) }
@@ -163,6 +205,7 @@ private fun HomeRoute(
         onMenuHidden = { vm.setShowHidden(!prefs.showHidden) },
         showHidden = prefs.showHidden,
         onRecentClick = { FileActions.open(ctx, it) },
+        onRecentMore = onRecentMore,
         onCategory = {
             if (it == Category.DOWNLOAD) push(Route.Folder(vm.repo.downloadDir.absolutePath)) else push(Route.Cat(it))
         },
@@ -184,10 +227,11 @@ private fun HomeRoute(
 private fun ListRoute(
     vm: MainViewModel, route: Route, prefs: SortPrefs,
     push: (Route) -> Unit, pop: () -> Unit, goHome: () -> Unit, replaceTop: (Route) -> Unit,
-    onSort: () -> Unit,
+    onSort: () -> Unit, onSelecting: (Boolean) -> Unit,
 ) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
+    val favorites by vm.favorites.collectAsStateWithLifecycle()
     val repo = vm.repo
     val rootPath = repo.root.absolutePath
     val downloadPath = repo.downloadDir.absolutePath
@@ -212,12 +256,14 @@ private fun ListRoute(
             items = repo.search(q, prefs.showHidden); loading = false
         }
     } else {
-        LaunchedEffect(route, prefs.showHidden, reload) {
+        LaunchedEffect(route, prefs.showHidden, reload, if (route == Route.Favorites) favorites else null) {
             if (reload == 0) return@LaunchedEffect
             if (items.isEmpty()) loading = true
             items = when (route) {
                 is Route.Folder -> repo.list(route.path, prefs.showHidden)
                 is Route.Cat -> repo.category(route.category, prefs.showHidden)
+                Route.Recent -> repo.recent(300)
+                Route.Favorites -> repo.paths(favorites, prefs.showHidden)
                 else -> emptyList()
             }
             loading = false
@@ -237,13 +283,24 @@ private fun ListRoute(
     val crumbs = when (route) {
         is Route.Folder -> folderCrumbs(route.path, rootPath, downloadPath)
         is Route.Cat -> listOf(Crumb(route.category.label, null))
+        Route.Recent -> listOf(Crumb("최근 항목", null))
+        Route.Favorites -> listOf(Crumb("즐겨찾기", null))
         else -> listOf(Crumb("검색", null))
     }
     val headerSize = when (route) {
         is Route.Folder -> folderSize?.let { Format.size(it) }
-        is Route.Cat -> Format.size(items.sumOf { it.size })
-        else -> null
+        else -> Format.size(shown.sumOf { it.size })
     }
+    val headerBadge = when (route) {
+        is Route.Folder -> if (route.path.startsWith(downloadPath)) Icons.Filled.Download else null
+        is Route.Cat -> categoryIcon(route.category).first
+        Route.Recent -> Icons.Filled.Schedule
+        Route.Favorites -> Icons.Filled.Star
+        else -> Icons.Filled.Search
+    }
+    val selectingNow = selection.isNotEmpty()
+    LaunchedEffect(selectingNow) { onSelecting(selectingNow) }
+    DisposableEffect(Unit) { onDispose { onSelecting(false) } }
 
     // 뒤로가기: 선택 모드 해제 → 검색창 닫기 → 이전 화면
     BackHandler(enabled = selection.isNotEmpty() || (route != Route.Search && query != null)) {
@@ -253,8 +310,9 @@ private fun ListRoute(
 
     val selectedItems = items.filter { it.path in selection }
     FileListContent(
-        crumbs = crumbs, headerSize = headerSize, sections = sections, prefs = prefs,
+        crumbs = crumbs, headerSize = headerSize, headerBadge = headerBadge, sections = sections, prefs = prefs,
         loading = loading, selection = selection, searchQuery = query,
+        selectionAllFavorite = selection.isNotEmpty() && selection.all { it in favorites },
         a = ListActions(
             onBack = { if (route != Route.Search && query != null) query = null else pop() },
             onSearchOpen = { query = "" },
@@ -278,6 +336,12 @@ private fun ListRoute(
                 selection = if (selection.size == all.size && all.isNotEmpty()) emptySet() else all
             },
             onShare = { FileActions.share(ctx, selectedItems) },
+            onFavorite = {
+                val add = !selection.all { it in favorites }
+                vm.setFavorite(selection, add)
+                Toast.makeText(ctx, if (add) "즐겨찾기에 추가했습니다" else "즐겨찾기에서 뺐습니다", Toast.LENGTH_SHORT).show()
+                selection = emptySet()
+            },
             onRename = { renameTarget = selectedItems.firstOrNull() },
             onDelete = { confirmDelete = true },
         ),
@@ -410,3 +474,5 @@ fun PermissionScreen(onGranted: () -> Unit, onExit: () -> Unit) {
         dismissButton = { TextButton({ askExit = false }) { Text("아니오", color = C.SubStrong) } },
     )
 }
+
+enum class Tab(val label: String) { HOME("홈"), FILES("파일"), RECENT("최근 항목"), FAVORITES("즐겨찾기"), SETTINGS("설정") }

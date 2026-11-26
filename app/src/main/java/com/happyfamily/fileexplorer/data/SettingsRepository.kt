@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -23,6 +24,7 @@ class SettingsRepository(private val context: Context) {
         val SORT_BY = stringPreferencesKey("sort_by")
         val FOLDERS_FIRST = booleanPreferencesKey("folders_first")
         val SHOW_HIDDEN = booleanPreferencesKey("show_hidden")
+        val FAVORITES = stringSetPreferencesKey("favorites")
         fun asc(by: SortBy) = booleanPreferencesKey("asc_${by.name}")
     }
 
@@ -42,4 +44,12 @@ class SettingsRepository(private val context: Context) {
     suspend fun setFoldersFirst(v: Boolean) = context.dataStore.edit { it[Keys.FOLDERS_FIRST] = v }
 
     suspend fun setShowHidden(v: Boolean) = context.dataStore.edit { it[Keys.SHOW_HIDDEN] = v }
+
+    /** 즐겨찾기한 파일·폴더 경로 */
+    val favorites: Flow<Set<String>> = context.dataStore.data.map { it[Keys.FAVORITES] ?: emptySet() }
+
+    suspend fun setFavorite(paths: Collection<String>, add: Boolean) = context.dataStore.edit {
+        val cur = it[Keys.FAVORITES] ?: emptySet()
+        it[Keys.FAVORITES] = if (add) cur + paths else cur - paths.toSet()
+    }
 }

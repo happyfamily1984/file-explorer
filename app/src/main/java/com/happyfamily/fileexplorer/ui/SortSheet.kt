@@ -1,6 +1,7 @@
 package com.happyfamily.fileexplorer.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -35,29 +36,29 @@ private fun description(by: SortBy) = when (by) {
     SortBy.SIZE -> "용량 순서대로 보기"
 }
 
-/** 목록 위에 항상 보이는 현재 정렬 표시줄 (누르면 정렬 시트) */
+/** 헤더 카드 안의 정렬 알약 버튼: 글자 → 정렬 시트, 화살표 → 방향 전환 */
 @Composable
-fun SortBar(prefs: SortPrefs, count: Int, onClick: () -> Unit, onToggleDirection: () -> Unit) {
+fun SortPill(prefs: SortPrefs, onClick: () -> Unit, onToggleDirection: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 2.dp, bottom = 2.dp),
+        Modifier.clip(CircleShape).background(Color.White)
+            .border(1.dp, C.CardBorder, CircleShape),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("${count}개 항목", color = C.Sub, fontSize = 14.sp, modifier = Modifier.weight(1f))
         Row(
-            Modifier.clip(CircleShape).clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 8.dp),
+            Modifier.clickable(onClick = onClick).padding(start = 14.dp, end = 6.dp, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.AutoMirrored.Outlined.Sort, null, tint = C.Accent, modifier = Modifier.size(18.dp))
+            Icon(Icons.AutoMirrored.Outlined.Sort, null, tint = C.Accent, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(6.dp))
-            Text(prefs.sortBy.label, color = C.Accent, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Text(prefs.sortBy.label, color = C.Accent, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         }
         Box(
-            Modifier.size(36.dp).clip(CircleShape).clickable(onClick = onToggleDirection),
+            Modifier.clickable(onClick = onToggleDirection).padding(start = 2.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 if (prefs.isAscending) Icons.Outlined.ArrowUpward else Icons.Outlined.ArrowDownward,
-                "정렬 방향", tint = C.Accent, modifier = Modifier.size(18.dp)
+                "정렬 방향", tint = C.Accent, modifier = Modifier.size(20.dp)
             )
         }
     }

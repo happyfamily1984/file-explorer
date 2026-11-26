@@ -47,6 +47,10 @@ class FileRepository(private val context: Context) {
         ).filter { !isHiddenPath(it.path) }.take(limit)
     }
 
+    suspend fun paths(paths: Collection<String>, showHidden: Boolean): List<FileItem> = withContext(Dispatchers.IO) {
+        paths.map(::File).filter { it.exists() }.map { FileItem.from(it, showHidden) }
+    }
+
     private fun query(selection: String?, args: Array<String>?, limit: Int?): List<FileItem> {
         val uri = MediaStore.Files.getContentUri("external")
         val proj = arrayOf(

@@ -13,8 +13,8 @@ android {
         applicationId = "com.happyfamily.fileexplorer"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
     }
 
     buildTypes {
@@ -64,4 +64,4 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
 
-roborazzi { outputDir.set(file("../screenshots")) }
+roborazzi { outputDir.set(file("build/screenshots")) }

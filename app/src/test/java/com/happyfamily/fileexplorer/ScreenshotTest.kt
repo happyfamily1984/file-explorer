@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,13 +60,14 @@ class ScreenshotTest {
         f("영상편집_최종.mp4", 182_400_000, t(45, 19, 22)),
     )
 
-    private val noop = ListActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+    private val noop = ListActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
 
     @Composable
     private fun List(prefs: SortPrefs, selection: Set<String> = emptySet()) {
         FileListContent(
             crumbs = listOf(Crumb("다운로드", base)),
-            headerSize = "10.09 GB",
+            headerSize = "9.43 GB", headerBadge = Icons.Filled.Download,
+            selectionAllFavorite = false,
             sections = Sorter.sort(download, prefs, now),
             prefs = prefs, loading = false, selection = selection, searchQuery = null,
             a = noop, now = now,
@@ -72,8 +75,13 @@ class ScreenshotTest {
     }
 
     private fun shot(name: String, content: @Composable () -> Unit) {
-        rule.setContent { AppTheme { content() } }
-        rule.onRoot().captureRoboImage("../screenshots/$name.png")
+        rule.setContent { AppTheme { AppBackground {
+            Column(Modifier.fillMaxSize()) {
+                Box(Modifier.weight(1f)) { content() }
+                if (!name.contains("select") && !name.contains("sheet")) BottomNav(if (name.contains("home")) Tab.HOME else Tab.FILES) {}
+            }
+        } } }
+        rule.onRoot().captureRoboImage("build/screenshots/$name.png")
     }
 
     @Test fun s1_home() = shot("01_home") {
@@ -81,7 +89,7 @@ class ScreenshotTest {
             recent = download.filter { !it.isDir }.sortedByDescending { it.modified }.take(4),
             storage = StorageInfo(152_000_000_000, 256_000_000_000),
             onSearch = {}, onMenuSort = {}, onMenuHidden = {}, showHidden = false,
-            onRecentClick = {}, onCategory = {}, onInternal = {}, onPrivacy = {}, now = now,
+            onRecentClick = {}, onRecentMore = {}, onCategory = {}, onInternal = {}, onPrivacy = {}, now = now,
         )
     }
 

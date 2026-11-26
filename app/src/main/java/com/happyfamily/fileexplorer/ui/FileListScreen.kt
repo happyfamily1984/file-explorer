@@ -1,22 +1,22 @@
 package com.happyfamily.fileexplorer.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.ArrowBackIos
-import androidx.compose.material.icons.filled.ArrowRight
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -52,6 +52,7 @@ class ListActions(
     val onNewFolder: (() -> Unit)?,
     val onSelectAll: () -> Unit,
     val onShare: () -> Unit,
+    val onFavorite: () -> Unit,
     val onRename: () -> Unit,
     val onDelete: () -> Unit,
 )
@@ -60,10 +61,12 @@ class ListActions(
 fun FileListContent(
     crumbs: List<Crumb>,
     headerSize: String?,
+    headerBadge: ImageVector?,
     sections: List<Section>,
     prefs: SortPrefs,
     loading: Boolean,
     selection: Set<String>,
+    selectionAllFavorite: Boolean,
     searchQuery: String?,
     a: ListActions,
     listState: LazyListState = rememberLazyListState(),
@@ -71,25 +74,45 @@ fun FileListContent(
 ) {
     val total = sections.sumOf { it.items.size }
     val selecting = selection.isNotEmpty()
-    Column(Modifier.fillMaxSize().background(C.Bg).statusBarsPadding().navigationBarsPadding()) {
-        // ── 상단 바
+    Column(Modifier.fillMaxSize().statusBarsPadding()) {
+        // ── 상단 바 (뒤로 · 홈 · 경로 · 검색 · 더보기)
         when {
             selecting -> SelectionTopBar(selection.size, total, a.onSelectAll)
             searchQuery != null -> SearchTopBar(searchQuery, a.onBack, a.onSearchChange)
             else -> {
                 var menu by remember { mutableStateOf(false) }
                 Row(
-                    Modifier.fillMaxWidth().padding(top = 16.dp, start = 6.dp, end = 12.dp),
+                    Modifier.fillMaxWidth().padding(top = 10.dp, start = 4.dp, end = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconBtn(Icons.AutoMirrored.Outlined.ArrowBackIos, "뒤로", onClick = a.onBack)
-                    Spacer(Modifier.weight(1f))
+                    Box(
+                        Modifier.size(width = 50.dp, height = 38.dp).clip(CircleShape).background(C.AccentSoft)
+                            .clickable(onClick = a.onHome),
+                        contentAlignment = Alignment.Center
+                    ) { Icon(Icons.Outlined.Home, "홈", tint = C.Text, modifier = Modifier.size(22.dp)) }
+                    Row(
+                        Modifier.weight(1f).horizontalScroll(rememberScrollState(Int.MAX_VALUE)),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        crumbs.forEachIndexed { i, c ->
+                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = Color(0xFFAAB2C5), modifier = Modifier.size(22.dp))
+                            val last = i == crumbs.lastIndex
+                            Text(
+                                c.label, fontSize = if (last) 21.sp else 16.sp, fontWeight = FontWeight.Bold,
+                                color = if (last) C.Accent else C.Sub, maxLines = 1,
+                                modifier = Modifier.clip(RoundedCornerShape(6.dp))
+                                    .clickable(enabled = !last && c.path != null) { a.onCrumb(c) }
+                                    .padding(horizontal = 2.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
                     IconBtn(Icons.Outlined.Search, "검색", onClick = a.onSearchOpen)
                     Box {
                         IconBtn(Icons.Outlined.MoreVert, "더보기") { menu = true }
                         DropdownMenu(menu, { menu = false }, containerColor = Color.White) {
                             DropdownMenuItem({ Text("정렬 방식") }, { menu = false; a.onSortClick() })
-                            DropdownMenuItem({ Text("편집 (선택)") }, { menu = false; a.onSelectAll() })
+                            DropdownMenuItem({ Text("편집 (전체 선택)") }, { menu = false; a.onSelectAll() })
                             a.onNewFolder?.let { nf -> DropdownMenuItem({ Text("새 폴더") }, { menu = false; nf() }) }
                             DropdownMenuItem(
                                 { Text(if (prefs.showHidden) "숨김 파일 숨기기" else "숨김 파일 표시") },
@@ -100,47 +123,32 @@ fun FileListContent(
             }
         }
 
-        // ── 경로 표시
+        // ── 요약 카드 (용량 · 항목 수 · 정렬)
         Row(
-            Modifier.fillMaxWidth().padding(start = 20.dp, end = 24.dp, top = 18.dp, bottom = 10.dp),
+            Modifier.padding(horizontal = 16.dp, vertical = 10.dp).fillMaxWidth().card(28.dp)
+                .padding(start = 14.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                Modifier.size(width = 38.dp, height = 32.dp).clip(RoundedCornerShape(9.dp))
-                    .border(1.5.dp, Color(0xFF8E8E94), RoundedCornerShape(9.dp)).clickable(onClick = a.onHome),
-                contentAlignment = Alignment.Center
-            ) { Icon(Icons.Outlined.Home, "홈", tint = Color(0xFF6E6E73), modifier = Modifier.size(20.dp)) }
-            Row(
-                Modifier.weight(1f).horizontalScroll(rememberScrollState(Int.MAX_VALUE)),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                crumbs.forEachIndexed { i, c ->
-                    Icon(Icons.Filled.ArrowRight, null, tint = Color(0xFFB5B5BB), modifier = Modifier.size(26.dp))
-                    val last = i == crumbs.lastIndex
-                    Text(
-                        c.label, fontSize = 17.sp, fontWeight = FontWeight.Bold,
-                        color = if (last) C.Accent else C.Sub,
-                        modifier = Modifier.clip(RoundedCornerShape(6.dp))
-                            .clickable(enabled = !last && c.path != null) { a.onCrumb(c) }
-                            .padding(horizontal = 2.dp, vertical = 2.dp)
-                    )
-                }
+            BlueFolder(58.dp, headerBadge)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(headerSize ?: "—", fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, color = C.Text, maxLines = 1)
+                Text("${total}개 항목", fontSize = 14.sp, color = C.SubStrong)
             }
-            if (headerSize != null) Text(headerSize, color = C.SubStrong, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Box(Modifier.padding(horizontal = 8.dp).size(1.dp, 40.dp).background(C.Divider))
+            SortPill(prefs, a.onSortClick, a.onToggleDirection)
         }
-
-        SortBar(prefs, total, a.onSortClick, a.onToggleDirection)
 
         Box(Modifier.weight(1f)) {
             if (!loading && total == 0) {
                 Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Outlined.FolderOff, null, tint = Color(0xFFC6C6CC), modifier = Modifier.size(56.dp))
+                    Icon(Icons.Outlined.FolderOff, null, tint = Color(0xFFC3CADA), modifier = Modifier.size(56.dp))
                     Spacer(Modifier.height(12.dp))
                     Text(if (searchQuery.isNullOrEmpty()) "파일이 없습니다" else "검색 결과가 없습니다", color = C.Sub, fontSize = 15.sp)
                 }
             }
             if (loading) CircularProgressIndicator(Modifier.align(Alignment.Center), color = C.Accent)
-            LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 24.dp)) {
+            LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 16.dp)) {
                 sections.forEach { sec ->
                     if (sec.title != null) item(key = "h_" + sec.title) { SectionHeader(sec.title) }
                     items(sec.items, key = { it.path }) { f ->
@@ -154,14 +162,14 @@ fun FileListContent(
             }
         }
 
-        if (selecting) SelectionBottomBar(selection.size == 1, a)
+        if (selecting) SelectionBottomBar(selection.size == 1, selectionAllFavorite, a)
     }
 }
 
 @Composable
 private fun SelectionTopBar(count: Int, total: Int, onSelectAll: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(top = 16.dp, start = 12.dp, end = 12.dp).height(48.dp),
+        Modifier.fillMaxWidth().padding(top = 10.dp, start = 12.dp, end = 12.dp).height(48.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(
@@ -170,7 +178,7 @@ private fun SelectionTopBar(count: Int, total: Int, onSelectAll: () -> Unit) {
         ) {
             Icon(
                 if (count == total) Icons.Filled.CheckCircle else Icons.Outlined.RadioButtonUnchecked,
-                "전체 선택", tint = if (count == total) C.Accent else Color(0xFFB8B8BE), modifier = Modifier.size(24.dp)
+                "전체 선택", tint = if (count == total) C.Accent else Color(0xFFB8BECC), modifier = Modifier.size(24.dp)
             )
             Text("전체", fontSize = 11.sp, color = C.SubStrong)
         }
@@ -184,12 +192,12 @@ private fun SearchTopBar(query: String, onBack: () -> Unit, onChange: (String) -
     val fr = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { fr.requestFocus() } }
     Row(
-        Modifier.fillMaxWidth().padding(top = 16.dp, start = 6.dp, end = 16.dp),
+        Modifier.fillMaxWidth().padding(top = 10.dp, start = 4.dp, end = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconBtn(Icons.AutoMirrored.Outlined.ArrowBackIos, "뒤로", onClick = onBack)
         Row(
-            Modifier.weight(1f).height(46.dp).clip(CircleShape).background(C.Tile).padding(horizontal = 16.dp),
+            Modifier.weight(1f).height(46.dp).clip(CircleShape).background(Color.White).padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(Icons.Outlined.Search, null, tint = C.Sub, modifier = Modifier.size(20.dp))
@@ -212,12 +220,15 @@ private fun SearchTopBar(query: String, onBack: () -> Unit, onChange: (String) -
 }
 
 @Composable
-private fun SelectionBottomBar(single: Boolean, a: ListActions) {
+private fun SelectionBottomBar(single: Boolean, allFavorite: Boolean, a: ListActions) {
     Row(
-        Modifier.fillMaxWidth().background(Color.White).padding(vertical = 6.dp),
+        Modifier.padding(horizontal = 14.dp, vertical = 8.dp).navigationBarsPadding().fillMaxWidth().card(26.dp)
+            .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         BottomAction(Icons.Outlined.Share, "공유", true, a.onShare)
+        BottomAction(if (allFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
+            if (allFavorite) "즐겨찾기 해제" else "즐겨찾기", true, a.onFavorite)
         BottomAction(Icons.Outlined.DriveFileRenameOutline, "이름 변경", single, a.onRename)
         BottomAction(Icons.Outlined.Delete, "삭제", true, a.onDelete)
     }
@@ -225,10 +236,10 @@ private fun SelectionBottomBar(single: Boolean, a: ListActions) {
 
 @Composable
 private fun BottomAction(icon: ImageVector, label: String, enabled: Boolean, onClick: () -> Unit) {
-    val tint = if (enabled) C.Text else Color(0xFFC6C6CC)
+    val tint = if (enabled) C.Text else Color(0xFFC3CADA)
     Column(
         Modifier.clip(RoundedCornerShape(12.dp)).clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 8.dp),
+            .padding(horizontal = 10.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(icon, label, tint = tint, modifier = Modifier.size(24.dp))
