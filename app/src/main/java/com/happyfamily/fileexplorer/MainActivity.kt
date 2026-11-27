@@ -89,7 +89,24 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         // 홈에서 뒤로가기: 종료 확인 없이 앱을 백그라운드로 보내 최근 실행 앱에 그대로 남긴다
         setContent { AppTheme { App(vm, onExit = { moveTaskToBack(true) }) } }
+        handleIntent(intent)
     }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    /** 다른 앱이 "다운로드 보기"나 "위치 보기"로 이 앱을 연 경우 해당 폴더로 이동 */
+    private fun handleIntent(intent: Intent?) {
+        intent ?: return
+        val folder = intent.getStringExtra(EXTRA_OPEN_FOLDER)
+            ?: if (intent.action == android.app.DownloadManager.ACTION_VIEW_DOWNLOADS) vm.repo.downloadDir.absolutePath else null
+        if (folder != null) vm.requestFolder(folder)
+        intent.removeExtra(EXTRA_OPEN_FOLDER)
+    }
+
+    companion object { const val EXTRA_OPEN_FOLDER = "open_folder" }
 }
 
 fun hasStoragePermission(ctx: android.content.Context): Boolean =
@@ -119,6 +136,16 @@ fun App(vm: MainViewModel, onExit: () -> Unit) {
     val push: (Route) -> Unit = { stack.add(it) }
     val pop: () -> Unit = { if (stack.size > 1) stack.removeAt(stack.lastIndex) }
     val goHome: () -> Unit = { while (stack.size > 1) stack.removeAt(stack.lastIndex) }
+
+    // 다른 앱에서 폴더 열기 요청이 오면: 홈 → 해당 폴더
+    val pendingFolder by vm.pendingFolder.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingFolder) {
+        pendingFolder?.let { path ->
+            while (stack.size > 1) stack.removeAt(stack.lastIndex)
+            stack.add(Route.Folder(path))
+            vm.requestFolder(null)
+        }
+    }
 
     var showSort by remember { mutableStateOf(false) }
     var showPrivacy by remember { mutableStateOf(false) }

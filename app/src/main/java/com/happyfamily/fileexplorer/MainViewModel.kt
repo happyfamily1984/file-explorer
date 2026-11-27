@@ -29,6 +29,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setOpenWith(ext: String, component: String?) = viewModelScope.launch { settings.setOpenWith(ext, component) }
     fun clearOpenWith() = viewModelScope.launch { settings.clearOpenWith() }
+    private val _pendingFolder = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    val pendingFolder: StateFlow<String?> = _pendingFolder
+    fun requestFolder(path: String?) { _pendingFolder.value = path }
+
     fun setSortBy(by: SortBy) = viewModelScope.launch { settings.setSortBy(by) }
     fun setAscending(by: SortBy, asc: Boolean) = viewModelScope.launch { settings.setAscending(by, asc) }
     fun setFoldersFirst(v: Boolean) = viewModelScope.launch { settings.setFoldersFirst(v) }

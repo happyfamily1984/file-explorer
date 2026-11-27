@@ -145,11 +145,39 @@ fun SettingsContent(
             "해제하면 다음에 그 형식의 파일을 열 때 앱을 다시 고를 수 있어요.",
             fontSize = 13.sp, color = C.Sub, lineHeight = 18.sp, modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 10.dp)
         )
+        BarTitle("다른 앱에서 파일 열 때", Modifier.padding(start = 20.dp, top = 24.dp, bottom = 10.dp), 16)
+        val ctx = androidx.compose.ui.platform.LocalContext.current
+        Column(Modifier.padding(horizontal = 16.dp).fillMaxWidth().card(24.dp).padding(18.dp)) {
+            Text(
+                "클로드·브라우저·메신저 등에서 받은 파일을 열 때 앱 선택창이 뜨면 '파일 탐색기'를 고르고 '항상'을 눌러 주세요.\n\n" +
+                    "그러면 다음부터는 이 앱이 먼저 받아서, 위의 '기본으로 열 앱' 설정대로 바로 열어 주거나 " +
+                    "'파일 탐색기에서 위치 보기'로 저장된 폴더를 보여 줘요.\n\n" +
+                    "다운로드 알림의 '다운로드 보기'도 같은 방법으로 이 앱에서 열 수 있어요.",
+                fontSize = 14.sp, color = C.SubStrong, lineHeight = 21.sp
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "되돌리려면: 앱 정보 > 기본으로 열기 > 기본 설정 지우기",
+                fontSize = 13.sp, color = C.Sub
+            )
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "앱 정보 열기", color = C.Accent, fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.clip(RoundedCornerShape(10.dp)).clickable {
+                    runCatching {
+                        ctx.startActivity(
+                            android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                android.net.Uri.parse("package:" + ctx.packageName))
+                        )
+                    }
+                }.padding(vertical = 6.dp, horizontal = 4.dp)
+            )
+        }
         BarTitle("정보", Modifier.padding(start = 20.dp, top = 24.dp, bottom = 10.dp), 16)
         Column(Modifier.padding(horizontal = 16.dp).fillMaxWidth().card(24.dp)) {
             SettingRow(Icons.Outlined.Shield, "개인정보 처리방침", null, onClick = onPrivacy)
             SettingDivider()
-            SettingRow(Icons.Outlined.Info, "앱 버전", "1.2.1", onClick = null)
+            SettingRow(Icons.Outlined.Info, "앱 버전", "1.3.0", onClick = null)
         }
         Spacer(Modifier.height(20.dp))
     }

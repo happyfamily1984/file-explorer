@@ -29,10 +29,33 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- 다른 앱의 "다운로드 보기" -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_DOWNLOADS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- 다른 앱에서 파일 "열기" → 기본 앱 저장 / 앱 선택 / 위치 보기 -->
+        <activity
+            android:name=".OpenActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:label="파일 탐색기"
+            android:theme="@style/Theme.FileExplorer.Translucent">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="*/*" />
             </intent-filter>
         </activity>
 
