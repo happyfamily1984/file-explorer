@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -58,6 +59,8 @@ fun categoryIcon(c: Category): Pair<ImageVector, Color> = when (c) {
 @Composable
 fun HomeContent(
     recent: List<FileItem>,
+    /** 앱을 열 때마다 바뀌는 값 — 바뀌면 최근 파일 줄을 맨 왼쪽으로 되돌린다 */
+    resumeKey: Int = 0,
     storage: StorageInfo,
     onSearch: () -> Unit,
     onMenuSort: () -> Unit,
@@ -128,7 +131,11 @@ fun HomeContent(
                 }
             }
             Spacer(Modifier.height(12.dp))
-            LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            // 앱을 열 때·목록이 바뀔 때 항상 맨 왼쪽(가장 최근 파일)부터 보이게.
+            // (항목에 key가 있어 새 파일이 앞에 끼면 LazyRow가 보던 항목을 따라가 한 칸 밀리는 것을 막음)
+            val rowState = rememberLazyListState()
+            LaunchedEffect(resumeKey, recent.map { it.path }) { rowState.scrollToItem(0) }
+            LazyRow(state = rowState, contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(recent, key = { it.path }) { f ->
                     val media = f.kind == FileKind.IMAGE || f.kind == FileKind.VIDEO
                     Column(Modifier.width(124.dp).clip(RoundedCornerShape(16.dp)).clickable { onRecentClick(f) }) {

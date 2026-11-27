@@ -149,7 +149,7 @@ fun SettingsContent(
         Column(Modifier.padding(horizontal = 16.dp).fillMaxWidth().card(24.dp)) {
             SettingRow(Icons.Outlined.Shield, "개인정보 처리방침", null, onClick = onPrivacy)
             SettingDivider()
-            SettingRow(Icons.Outlined.Info, "앱 버전", "1.2.0", onClick = null)
+            SettingRow(Icons.Outlined.Info, "앱 버전", "1.2.1", onClick = null)
         }
         Spacer(Modifier.height(20.dp))
     }

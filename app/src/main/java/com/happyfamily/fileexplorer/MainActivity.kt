@@ -220,9 +220,11 @@ private fun HomeRoute(
     var storage by remember { mutableStateOf(StorageInfo(0, 0)) }
     val scope = rememberCoroutineScope()
     val openFile = LocalOpenFile.current
+    var resumeKey by remember { mutableIntStateOf(0) }
     LifecycleResumeEffect(Unit) {
         val job = scope.launch {
             recent = vm.repo.recent()
+            resumeKey++
             storage = withContext(Dispatchers.IO) { vm.repo.storage() }
         }
         onPauseOrDispose { job.cancel() }
@@ -230,7 +232,7 @@ private fun HomeRoute(
     BackHandler { onExit() }
 
     HomeContent(
-        recent = recent, storage = storage,
+        recent = recent, resumeKey = resumeKey, storage = storage,
         onSearch = { push(Route.Search) },
         onMenuSort = onSort,
         onMenuHidden = { vm.setShowHidden(!prefs.showHidden) },
